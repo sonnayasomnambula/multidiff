@@ -89,6 +89,8 @@
     <addaction name="separator"/>
     <addaction name="actionEdit"/>
     <addaction name="actionDiff"/>
+    <addaction name="actionShow_duplicates"/>
+    <addaction name="separator"/>
     <addaction name="actionRemove"/>
     <addaction name="separator"/>
     <addaction name="actionSettings"/>
@@ -135,6 +137,14 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+E</string>
+   </property>
+  </action>
+  <action name="actionShow_duplicates">
+   <property name="text">
+    <string>Show duplicates</string>
+   </property>
+   <property name="shortcut">
+    <string>F3</string>
    </property>
   </action>
  </widget>

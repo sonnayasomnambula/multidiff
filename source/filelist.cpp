@@ -37,7 +37,7 @@ void FileList::append(const QString& path)
 
     if (file.isFile())
     {
-        insertTopLevelItem(topLevelItemCount(), new Item(path));
+        insertTopLevelItem(count(), new Item(path));
         return;
     }
 
@@ -50,7 +50,7 @@ void FileList::append(const QString& path)
 
         QDirIterator filesInDirectory(path, QDir::Files | QDir::Hidden, QDirIterator::Subdirectories);
         while (filesInDirectory.hasNext())
-            insertTopLevelItem(topLevelItemCount(), new Item(filesInDirectory.next()));
+            insertTopLevelItem(count(), new Item(filesInDirectory.next()));
     }
 }
 
@@ -112,6 +112,16 @@ bool FileList::acceptable(const QMimeData* mime)
             Algo::all_of(mime->urls(), [](const QUrl& url){ return url.isLocalFile(); });
 }
 
+QModelIndex FileList::indexFromRow(int row) const
+{
+    return indexFromItem(topLevelItem(row));
+}
+
+int FileList::count() const
+{
+    return topLevelItemCount();
+}
+
 QIcon FileList::square(QColor color, int size)
 {
     QPixmap pix(size, size);
@@ -152,7 +162,7 @@ void FileList::calculateHashes()
 
     QStringList warnings;
 
-    for (int row=0; row<topLevelItemCount(); ++row)
+    for (int row=0; row<count(); ++row)
     {
         try
         {
@@ -177,7 +187,10 @@ void FileList::calculateHashes()
     if (!warnings.isEmpty())
         emit warn(warnings.join("\n"));
 
-    StatusMessage::show(tr("Done!"));
+    StatusMessage::show(tr("There are %1/%2 unique files")
+                            .arg(colors.size())
+                            .arg(count()),
+                        StatusMessage::mcInfinite);
 }
 
 void FileList::removeSelectedItems()
@@ -193,6 +206,37 @@ QStringList FileList::selectedFiles() const
     for (auto i: selectionModel()->selectedRows())
         list.append(path(i.row()));
     return list;
+}
+
+void FileList::showDuplicates()
+{
+    if (count() == 0)
+    {
+        StatusMessage::show(tr("No files"));
+        return;
+    }
+
+    int topRow = selectedIndexes().isEmpty() ? 0 : selectedIndexes().first().row() + 1;
+    if (topRow >= count())
+        topRow = 0;
+
+    for (int top = topRow; top < count(); ++top)
+    {
+        const auto hash = topLevelItem(top)->text(Item::eHash);
+        setCurrentIndex(indexFromRow(top));
+
+        for (int row = top + 1; row < count(); ++row)
+        {
+            if (topLevelItem(row)->text(Item::eHash) == hash)
+                selectionModel()->select(indexFromRow(row), QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        }
+
+        if (selectionModel()->selectedRows().size() > 1)
+            return;
+    }
+
+    selectionModel()->clear();
+    StatusMessage::show(tr("No duplicates after row %1").arg(topRow));
 }
 
 FileList::Item::Item(const QFileInfo& fileInfo) :

@@ -20,6 +20,7 @@ private slots:
     void on_actionRemove_triggered();
     void on_actionDiff_triggered();
     void on_actionEdit_triggered();
+    void on_actionShow_duplicates_triggered();
 
 private:
     void closeEvent(QCloseEvent* e) override;

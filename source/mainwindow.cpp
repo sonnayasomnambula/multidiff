@@ -117,3 +117,8 @@ void MainWindow::on_actionEdit_triggered()
 
     QDesktopServices::openUrl(QUrl::fromLocalFile(selection.first()));
 }
+
+void MainWindow::on_actionShow_duplicates_triggered()
+{
+    ui->fileList->showDuplicates();
+}

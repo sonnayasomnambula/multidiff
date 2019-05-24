@@ -25,7 +25,12 @@ public:
     /// \return full filename of each selected item
     QStringList selectedFiles() const;
 
+    /// Search for duplicates beginning {current row + 1} and select it
+    void showDuplicates();
+
 signals:
+    /// Warn user about something
+    /// \param message localized message
     void warn(const QString& message);
 
 private:
@@ -34,28 +39,37 @@ private:
     void dragLeaveEvent(QDragLeaveEvent* e) override;
     void dropEvent(QDropEvent* e) override;
 
+    /// Highlight the drop area
     void highlight(bool on = true);
 
     /// Calculate file hashes and update icons
     void calculateHashes();
 
+    /// Draw a colored square icon
     static QIcon square(QColor color, int size = 64);
+
+    /// Only local files can be dropped
     static bool acceptable(const QMimeData* mime);
+
+    QModelIndex indexFromRow(int row) const;
+    int count() const;
 
     class Item : public QTreeWidgetItem
     {
     public:
+        /// Columns
+        /// Only for reference - all is set in the .ui file
+        enum { eName, eDir, eSize, eLastModified, eHash, ColCount };
+
         Item(const QFileInfo& fileInfo);
 
         QString absoluteFilePath() const { return mFileInfo.absoluteFilePath(); }
 
-        /// throws QString
+        /// Calculate file SHA-1 and update column `eHash` text
+        /// \throws localized message as QString
         QByteArray calculateHash();
 
     private:
-        /// only for reference - all is set in the .ui file
-        enum { eName, eDir, eSize, eLastModified, eHash, ColCount };
-
         bool operator <(const QTreeWidgetItem& other) const;
 
         QFileInfo mFileInfo;
