@@ -96,7 +96,7 @@ void FileList::highlight(bool on)
     static const auto highlighted = [this]() {
         QPalette p = palette();
         p.setColor(QPalette::Window, p.color(QPalette::Highlight));
-        p.setColor(QPalette::Base, p.color(QPalette::Highlight).lighter(225));
+        p.setColor(QPalette::Base, p.color(QPalette::Highlight).lighter(220));
         return p;
     }();
 
