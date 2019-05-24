@@ -14,11 +14,14 @@ public:
     /// If timeout is 0, the message remains displayed until clear() is called or until show()
     /// is called again to change the message.
     /// WARNING: Please set the status bar first.
-    static void show(const QString& text, int timeout = 2000);
+    static void show(const QString& text, int timeout = mcShort);
 
     /// Removes any message being shown.
     /// WARNING: Please set the status bar first.
     static void clear();
+
+    static const int mcShort = 2000;
+    static const int mcInfinite = 0;
 
 private:
     static QStatusBar* mBar;

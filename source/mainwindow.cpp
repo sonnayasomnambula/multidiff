@@ -33,7 +33,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
     loadSettings();
     StatusMessage::setStatusBar(ui->statusBar);
-    StatusMessage::show(tr("Drag'n'drop files here"), 0);
+    StatusMessage::show(tr("Drag'n'drop files here"), StatusMessage::mcInfinite);
 
     connect(ui->fileList, &FileList::warn, [this](const QString& message){
         QMessageBox::warning(this, "", message);

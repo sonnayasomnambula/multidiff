@@ -15,6 +15,8 @@ class FileList : public QTreeWidget
 public:
     explicit FileList(QWidget* parent);
 
+    void append(const QString& path);
+
     /// full filename with path
     QString path(int row) const;
 

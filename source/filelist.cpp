@@ -4,8 +4,10 @@
 #include <QDateTime>
 #include <QDebug>
 #include <QDir>
+#include <QDirIterator>
 #include <QDropEvent>
 #include <QHeaderView>
+#include <QMessageBox>
 #include <QMimeData>
 #include <QPainter>
 
@@ -27,6 +29,29 @@ FileList::FileList(QWidget* parent) :
         if (column >= 0 && mClicked[0] == mClicked[1] && mClicked[1] == mClicked[2])
             sortByColumn(-1);
     });
+}
+
+void FileList::append(const QString& path)
+{
+    const auto file = QFileInfo(path);
+
+    if (file.isFile())
+    {
+        insertTopLevelItem(topLevelItemCount(), new Item(path));
+        return;
+    }
+
+    if (file.isDir())
+    {
+        const auto response = QMessageBox::question(this, "",
+                                                    tr("'%1' is a directory.\nDo you want to add all files from this directory?").arg(path));
+        if (response != QMessageBox::Yes)
+            return;
+
+        QDirIterator filesInDirectory(path, QDir::Files | QDir::Hidden, QDirIterator::Subdirectories);
+        while (filesInDirectory.hasNext())
+            insertTopLevelItem(topLevelItemCount(), new Item(filesInDirectory.next()));
+    }
 }
 
 QString FileList::path(int row) const
@@ -63,7 +88,7 @@ void FileList::dropEvent(QDropEvent* e)
 
     e->acceptProposedAction();
     for (const auto& url: e->mimeData()->urls())
-        insertTopLevelItem(topLevelItemCount(), new Item(url.toLocalFile()));
+        append(url.toLocalFile());
 
     calculateHashes();
 }
@@ -133,7 +158,7 @@ void FileList::calculateHashes()
         {
             auto item = static_cast<Item*>(topLevelItem(row));
 
-            StatusMessage::show(tr("Calculate hash for '%1'...").arg(path(row)), 0);
+            StatusMessage::show(tr("Calculate hash for '%1'...").arg(path(row)), StatusMessage::mcInfinite);
             const auto hash = item->calculateHash();
 
             // it is already known hash or a brand new one?
@@ -159,6 +184,7 @@ void FileList::removeSelectedItems()
 {
     for (auto item: selectedItems())
         delete takeTopLevelItem(indexOfTopLevelItem(item));
+    StatusMessage::clear();
 }
 
 QStringList FileList::selectedFiles() const
