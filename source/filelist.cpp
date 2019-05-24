@@ -1,13 +1,10 @@
 #include "filelist.h"
 
-#include <QAction>
 #include <QCryptographicHash>
-#include <QCoreApplication>
 #include <QDateTime>
 #include <QDebug>
 #include <QDir>
 #include <QDropEvent>
-#include <QFileInfo>
 #include <QHeaderView>
 #include <QMimeData>
 #include <QPainter>
@@ -21,39 +18,20 @@
 FileList::FileList(QWidget* parent) :
     QTreeWidget(parent)
 {
-    connect(header(), &QHeaderView::sortIndicatorChanged, [this](int logicalIndex){
-        if (mHeaderWatcher.thirdClickInARow(logicalIndex))
+    // Disable the sort after 3rd click on the same column header
+    connect(header(), &QHeaderView::sortIndicatorChanged, [this, mClicked = std::deque<int>{ -1, -1, -1 }](int column) mutable {
+        mClicked.push_front(column);
+        mClicked.pop_back();
+        Q_ASSERT(mClicked.size() == 3);
+
+        if (column >= 0 && mClicked[0] == mClicked[1] && mClicked[1] == mClicked[2])
             sortByColumn(-1);
     });
 }
 
-bool FileList::HeaderWatcher::thirdClickInARow(int column)
-{
-    mClicked.push_front(column);
-    mClicked.pop_back();
-    Q_ASSERT(mClicked.size() == 3);
-
-    if (column < 0)
-        return false;
-
-    return mClicked[0] == mClicked[1] && mClicked[1] == mClicked[2];
-}
-
-void FileList::add(const QUrl& url)
-{
-    const QFileInfo fileInfo(url.toLocalFile());
-
-    insertTopLevelItem(topLevelItemCount(), new QTreeWidgetItem({url.fileName(),
-                                                                 fileInfo.dir().path(),
-                                                                 QString::number(fileInfo.size()),
-                                                                 fileInfo.lastModified().toString(Qt::SystemLocaleShortDate)}));
-}
-
 QString FileList::path(int row) const
 {
-    QDir dir(topLevelItem(row)->text(EColumn::eDir));
-    QString name(topLevelItem(row)->text(EColumn::eName));
-    return dir.absoluteFilePath(name);
+    return static_cast<Item*>(topLevelItem(row))->absoluteFilePath();
 }
 
 void FileList::dragEnterEvent(QDragEnterEvent* e)
@@ -85,9 +63,9 @@ void FileList::dropEvent(QDropEvent* e)
 
     e->acceptProposedAction();
     for (const auto& url: e->mimeData()->urls())
-        add(url);
+        insertTopLevelItem(topLevelItemCount(), new Item(url.toLocalFile()));
 
-    rediff();
+    calculateHashes();
 }
 
 void FileList::highlight(bool on)
@@ -109,11 +87,6 @@ bool FileList::acceptable(const QMimeData* mime)
             Algo::all_of(mime->urls(), [](const QUrl& url){ return url.isLocalFile(); });
 }
 
-bool FileList::compare(const QString& path1, const QString& path2)
-{
-    return path1 == path2; // TODO
-}
-
 QIcon FileList::square(QColor color, int size)
 {
     QPixmap pix(size, size);
@@ -123,7 +96,6 @@ QIcon FileList::square(QColor color, int size)
     painer.drawRect(pix.rect().adjusted(1, 1, -2, -2));
     return pix;
 }
-
 class ColorGenerator
 {
 public:
@@ -134,18 +106,18 @@ public:
 private:
     QColor color(int id) {
         if (id < Qt::transparent)
-            return QColor(static_cast<Qt::GlobalColor>(id));
+            return static_cast<Qt::GlobalColor>(id);
 
         const int r = qrand() % 255;
         const int g = qrand() % 255;
         const int b = qrand() % 255;
-        return QColor(r, g, b);
+        return { r, g, b };
     }
 
     int mColor = Qt::white;
 };
 
-void FileList::rediff()
+void FileList::calculateHashes()
 {
     WidgetLocker wl(this);
     AppCursorLocker acl;
@@ -157,34 +129,24 @@ void FileList::rediff()
 
     for (int row=0; row<topLevelItemCount(); ++row)
     {
-        QFile file(path(row));
-        QCryptographicHash hashCalculator(QCryptographicHash::Algorithm::Sha1);
-
-        StatusMessage::show(tr("Calculate hash for %1...").arg(file.fileName()), 0);
-
-        // calculate file sha-1 hash
-
-        if (!file.open(QIODevice::ReadOnly))
+        try
         {
-            warnings.append(tr("Unable to open '%1'").arg(file.fileName()));
-            continue;
-        }
+            auto item = static_cast<Item*>(topLevelItem(row));
 
-        if (!hashCalculator.addData(&file))
+            StatusMessage::show(tr("Calculate hash for '%1'...").arg(path(row)), 0);
+            const auto hash = item->calculateHash();
+
+            // it is already known hash or a brand new one?
+
+            auto icolor = colors.find(hash);
+            if (icolor == colors.cend())
+                icolor = colors.insert(hash, colorGenerator.next());
+            item->setIcon(0, square(icolor.value()));
+        }
+        catch (const QString& warningMessage)
         {
-            warnings.append(tr("Cannot read '%1'").arg(file.fileName()));
-            continue;
+            warnings.append(warningMessage);
         }
-
-        // it is already known hash or a brand new one?
-
-        const auto hash = hashCalculator.result();
-        auto icolor = colors.find(hash);
-        if (icolor == colors.cend())
-            icolor = colors.insert(hash, colorGenerator.next());
-
-        topLevelItem(row)->setIcon(EColumn::eName, square(icolor.value()));
-        topLevelItem(row)->setText(EColumn::eHash, hash.toBase64());
     }
 
     if (!warnings.isEmpty())
@@ -193,7 +155,7 @@ void FileList::rediff()
     StatusMessage::show(tr("Done!"));
 }
 
-void FileList::removeSelected()
+void FileList::removeSelectedItems()
 {
     for (auto item: selectedItems())
         delete takeTopLevelItem(indexOfTopLevelItem(item));
@@ -205,4 +167,49 @@ QStringList FileList::selectedFiles() const
     for (auto i: selectionModel()->selectedRows())
         list.append(path(i.row()));
     return list;
+}
+
+FileList::Item::Item(const QFileInfo& fileInfo) :
+    QTreeWidgetItem({fileInfo.fileName(),
+                    fileInfo.dir().path(),
+                    QString::number(fileInfo.size()),
+                    fileInfo.lastModified().toString(Qt::SystemLocaleShortDate)}),
+    mFileInfo(fileInfo)
+{
+
+}
+
+QByteArray FileList::Item::calculateHash()
+{
+    QFile file(absoluteFilePath());
+    QCryptographicHash hashCalculator(QCryptographicHash::Algorithm::Sha1);
+
+    // calculate file sha-1 hash
+
+    if (!file.open(QIODevice::ReadOnly))
+        throw tr("Unable to open '%1'").arg(file.fileName());
+
+    if (!hashCalculator.addData(&file))
+        throw tr("Cannot read '%1'").arg(file.fileName());
+
+    const auto hash = hashCalculator.result();
+    setText(Item::eHash, hash.toBase64());
+    return hash;
+}
+
+bool FileList::Item::operator <(const QTreeWidgetItem& other) const
+{
+    const auto& otherItem = static_cast<const Item&>(other);
+
+    switch (treeWidget()->sortColumn())
+    {
+    case eSize:
+        return mFileInfo.size() < otherItem.mFileInfo.size();
+
+    case eLastModified:
+        return mFileInfo.lastModified() < otherItem.mFileInfo.lastModified();
+
+    default:
+        return QTreeWidgetItem::operator <(other);
+    }
 }

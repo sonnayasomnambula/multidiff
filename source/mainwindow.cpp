@@ -82,7 +82,7 @@ void MainWindow::on_actionSettings_triggered()
 
 void MainWindow::on_actionRemove_triggered()
 {
-    ui->fileList->removeSelected();
+    ui->fileList->removeSelectedItems();
 }
 
 void MainWindow::on_actionDiff_triggered()

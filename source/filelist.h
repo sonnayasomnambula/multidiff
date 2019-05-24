@@ -1,10 +1,13 @@
 #ifndef FILELIST_H
 #define FILELIST_H
 
-#include <QTreeWidget>
 #include <deque>
 
-/// QTreeWidget with top-level items only, presented file info (see enum EColumn)
+#include <QFileInfo>
+#include <QTreeWidget>
+
+
+/// QTreeWidget with top-level items only, presented file info
 class FileList : public QTreeWidget
 {
     Q_OBJECT
@@ -12,23 +15,18 @@ class FileList : public QTreeWidget
 public:
     explicit FileList(QWidget* parent);
 
-    /// \brief add file info
-    /// \param url local file url
-    void add(const QUrl& url);
-
     /// full filename with path
     QString path(int row) const;
 
-    void removeSelected();
+    void removeSelectedItems();
+
+    /// \return full filename of each selected item
     QStringList selectedFiles() const;
 
 signals:
     void warn(const QString& message);
 
 private:
-    /// only for reference - all is set in the .ui file
-    enum EColumn { eName, eDir, eSize, eLastModified, eHash, ColCount };
-
     void dragEnterEvent(QDragEnterEvent* e) override;
     void dragMoveEvent(QDragMoveEvent* e) override;
     void dragLeaveEvent(QDragLeaveEvent* e) override;
@@ -36,22 +34,30 @@ private:
 
     void highlight(bool on = true);
 
-    /// recalculate file-to-file diff and set icons
-    void rediff();
+    /// Calculate file hashes and update icons
+    void calculateHashes();
 
-    static bool acceptable(const QMimeData* mime);
-    static bool compare(const QString& path1, const QString& path2);
     static QIcon square(QColor color, int size = 64);
+    static bool acceptable(const QMimeData* mime);
 
-    /// I want to disable the sort after 3rd click on the same column header
-    class HeaderWatcher
+    class Item : public QTreeWidgetItem
     {
     public:
-        bool thirdClickInARow(int column);
+        Item(const QFileInfo& fileInfo);
+
+        QString absoluteFilePath() const { return mFileInfo.absoluteFilePath(); }
+
+        /// throws QString
+        QByteArray calculateHash();
 
     private:
-        std::deque<int> mClicked{ -1, -1, -1 };
-    } mHeaderWatcher;
+        /// only for reference - all is set in the .ui file
+        enum { eName, eDir, eSize, eLastModified, eHash, ColCount };
+
+        bool operator <(const QTreeWidgetItem& other) const;
+
+        QFileInfo mFileInfo;
+    };
 };
 
 #endif // FILELIST_H
