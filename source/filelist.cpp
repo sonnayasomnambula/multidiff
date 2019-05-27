@@ -30,7 +30,7 @@ FileList::FileList(QWidget* parent) :
 
 void FileList::append(const QString& path)
 {
-    const auto file = QFileInfo(path);
+    QFileInfo file(path);
 
     if (file.isFile())
     {
@@ -58,10 +58,10 @@ QString FileList::path(int row) const
 
 void FileList::dragEnterEvent(QDragEnterEvent* e)
 {
-    if (!acceptable(e->mimeData()))
+    if (!isAcceptable(e->mimeData()))
         return;
 
-    highlight();
+    highlightDropArea();
     e->acceptProposedAction();
 }
 
@@ -72,15 +72,15 @@ void FileList::dragMoveEvent(QDragMoveEvent* e)
 
 void FileList::dragLeaveEvent(QDragLeaveEvent* e)
 {
-    highlight(false);
+    highlightDropArea(false);
     e->accept();
 }
 
 void FileList::dropEvent(QDropEvent* e)
 {
-    highlight(false);
+    highlightDropArea(false);
 
-    if (!acceptable(e->mimeData()))
+    if (!isAcceptable(e->mimeData()))
         return;
 
     e->acceptProposedAction();
@@ -90,9 +90,9 @@ void FileList::dropEvent(QDropEvent* e)
     calculateHashes();
 }
 
-void FileList::highlight(bool on)
+void FileList::highlightDropArea(bool on)
 {
-    static const auto backup = palette();
+    static const auto normal = palette();
     static const auto highlighted = [this]() {
         QPalette p = palette();
         p.setColor(QPalette::Window, p.color(QPalette::Highlight));
@@ -100,10 +100,10 @@ void FileList::highlight(bool on)
         return p;
     }();
 
-    setPalette(on ? highlighted : backup);
+    setPalette(on ? highlighted : normal);
 }
 
-bool FileList::acceptable(const QMimeData* mime)
+bool FileList::isAcceptable(const QMimeData* mime)
 {
     const auto urls = mime->urls();
     return mime->hasUrls() && !urls.isEmpty() &&
@@ -120,7 +120,7 @@ int FileList::count() const
     return topLevelItemCount();
 }
 
-QIcon FileList::square(QColor color, int size)
+QPixmap FileList::coloredSquarePixmap(QColor color, int size)
 {
     QPixmap pix(size, size);
     QPainter painer(&pix);
@@ -174,7 +174,7 @@ void FileList::calculateHashes()
             auto icolor = colors.find(hash);
             if (icolor == colors.cend())
                 icolor = colors.insert(hash, colorGenerator.next());
-            item->setIcon(0, square(icolor.value()));
+            item->setIcon(0, coloredSquarePixmap(icolor.value()));
         }
         catch (const QString& warningMessage)
         {
@@ -183,7 +183,7 @@ void FileList::calculateHashes()
     }
 
     if (!warnings.isEmpty())
-        emit warn(warnings.join("\n"));
+        QMessageBox::warning(this, "", warnings.join("\n"));
 
     StatusMessage::show(tr("There are %1/%2 unique files")
                             .arg(colors.size())

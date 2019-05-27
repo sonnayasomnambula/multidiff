@@ -4,6 +4,7 @@
 class QStatusBar;
 class QString;
 
+/// Shows simple text in the status bar
 class StatusMessage
 {
 public:

@@ -5,7 +5,6 @@
 #include <QDragEnterEvent>
 #include <QDebug>
 #include <QHeaderView>
-#include <QMessageBox>
 #include <QProcess>
 #include <QSettings>
 
@@ -34,10 +33,6 @@ MainWindow::MainWindow(QWidget *parent) :
     loadSettings();
     StatusMessage::setStatusBar(ui->statusBar);
     StatusMessage::show(tr("Drag'n'drop files here"), StatusMessage::mcInfinite);
-
-    connect(ui->fileList, &FileList::warn, [this](const QString& message){
-        QMessageBox::warning(this, "", message);
-    });
 }
 
 MainWindow::~MainWindow()

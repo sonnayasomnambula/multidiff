@@ -28,11 +28,6 @@ public:
     /// Search for duplicates beginning {current row + 1} and select it
     void showDuplicates();
 
-signals:
-    /// Warn user about something
-    /// \param message localized message
-    void warn(const QString& message);
-
 private:
     void dragEnterEvent(QDragEnterEvent* e) override;
     void dragMoveEvent(QDragMoveEvent* e) override;
@@ -40,16 +35,16 @@ private:
     void dropEvent(QDropEvent* e) override;
 
     /// Highlight the drop area
-    void highlight(bool on = true);
+    void highlightDropArea(bool on = true);
 
     /// Calculate file hashes and update icons
     void calculateHashes();
 
-    /// Draw a colored square icon
-    static QIcon square(QColor color, int size = 64);
+    /// Draw a colored square pixmap with 1px black border
+    static QPixmap coloredSquarePixmap(QColor color, int size = 64);
 
     /// Only local files can be dropped
-    static bool acceptable(const QMimeData* mime);
+    static bool isAcceptable(const QMimeData* mime);
 
     QModelIndex indexFromRow(int row) const;
     int count() const;
@@ -61,7 +56,7 @@ private:
         /// Only for reference - all is set in the .ui file
         enum { eName, eDir, eSize, eLastModified, eHash, ColCount };
 
-        Item(const QFileInfo& fileInfo);
+        explicit Item(const QFileInfo& fileInfo);
 
         QString absoluteFilePath() const { return mFileInfo.absoluteFilePath(); }
 
