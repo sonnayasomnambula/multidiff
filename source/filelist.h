@@ -15,7 +15,7 @@ class FileList : public QTreeWidget
 public:
     explicit FileList(QWidget* parent);
 
-    void append(const QString& path);
+    void append(const QList<QUrl>& urls);
 
     /// full filename with path
     QString path(int row) const;
@@ -37,12 +37,6 @@ private:
     /// Highlight the drop area
     void highlightDropArea(bool on = true);
 
-    /// Calculate file hashes and update icons
-    void calculateHashes();
-
-    /// Draw a colored square pixmap with 1px black border
-    static QPixmap coloredSquarePixmap(QColor color, int size = 64);
-
     /// Only local files can be dropped
     static bool isAcceptable(const QMimeData* mime);
 
@@ -56,13 +50,12 @@ private:
         /// Only for reference - all is set in the .ui file
         enum { eName, eDir, eSize, eLastModified, eHash, ColCount };
 
-        explicit Item(const QFileInfo& fileInfo);
+        explicit Item(const QFileInfo& fileInfo, const QByteArray& hash, QColor color);
 
         QString absoluteFilePath() const { return mFileInfo.absoluteFilePath(); }
 
-        /// Calculate file SHA-1 and update column `eHash` text
-        /// \throws localized message as QString
-        QByteArray calculateHash();
+        /// Draw a colored square pixmap with 1px black border
+        static QPixmap coloredSquarePixmap(QColor color, int size = 64);
 
     private:
         bool operator <(const QTreeWidgetItem& other) const;

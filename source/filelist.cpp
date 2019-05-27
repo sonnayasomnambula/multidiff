@@ -28,29 +28,6 @@ FileList::FileList(QWidget* parent) :
     });
 }
 
-void FileList::append(const QString& path)
-{
-    QFileInfo file(path);
-
-    if (file.isFile())
-    {
-        insertTopLevelItem(count(), new Item(path));
-        return;
-    }
-
-    if (file.isDir())
-    {
-        const auto response = QMessageBox::question(this, "",
-                                                    tr("'%1' is a directory.\nDo you want to add all files from this directory?").arg(path));
-        if (response != QMessageBox::Yes)
-            return;
-
-        QDirIterator filesInDirectory(path, QDir::Files | QDir::Hidden, QDirIterator::Subdirectories);
-        while (filesInDirectory.hasNext())
-            insertTopLevelItem(count(), new Item(filesInDirectory.next()));
-    }
-}
-
 QString FileList::path(int row) const
 {
     return static_cast<Item*>(topLevelItem(row))->absoluteFilePath();
@@ -84,10 +61,123 @@ void FileList::dropEvent(QDropEvent* e)
         return;
 
     e->acceptProposedAction();
-    for (const auto& url: e->mimeData()->urls())
-        append(url.toLocalFile());
+    append(e->mimeData()->urls());
+}
 
-    calculateHashes();
+void FileList::append(const QList<QUrl>& urls)
+{
+    class ColorGenerator
+    {
+    public:
+        QColor next() {
+            if (mColor < Qt::transparent)
+                return static_cast<Qt::GlobalColor>(mColor++);
+
+            return { qrand() % 255, qrand() % 255, qrand() % 255 };
+        }
+
+    private:
+        int mColor = Qt::white;
+    };
+
+    /// The class accumulates warnings while generating a list of FileList::Item
+    class Collector
+    {
+    public:
+        Collector(FileList* treeWidget) : mTreeWidget(treeWidget) {}
+
+        void collect(const QList<QUrl>& urls)
+        {
+            for (const auto& url: urls)
+            {
+                const auto path = url.toLocalFile();
+                QFileInfo entry(path);
+
+                if (entry.isFile())
+                    appendFile(path);
+                else if (entry.isDir())
+                    appendDir(path);
+                else
+                    mWarnings.append(tr("Cannot add '%1'").arg(path));
+            }
+
+            StatusMessage::show(tr("There are %1/%2 unique files")
+                                    .arg(mColors.size())
+                                    .arg(mItems.size()),
+                                StatusMessage::mcInfinite);
+        }
+
+        const auto& warnings() const { return mWarnings; }
+        const auto& collected() const { return mItems; }
+
+    private:
+        void appendFile(const QString& path)
+        {
+            QFile file(path);
+            QCryptographicHash hashCalculator(QCryptographicHash::Algorithm::Sha1);
+
+            // calculate file sha-1 hash
+
+            if (!file.open(QIODevice::ReadOnly))
+            {
+                mWarnings.append(tr("Unable to open '%1'").arg(path));
+                return;
+            }
+
+            if (!hashCalculator.addData(&file))
+            {
+                mWarnings.append(tr("Cannot read '%1'").arg(path));
+                return;
+            }
+
+            StatusMessage::show(tr("Calculate hash for '%1'...").arg(path), StatusMessage::mcInfinite);
+            const auto hash = hashCalculator.result();
+
+            // it is already known hash or a brand new one?
+
+            auto icolor = mColors.find(hash);
+            if (icolor == mColors.cend())
+                icolor = mColors.insert(hash, mColorGenerator.next());
+
+            mItems.append(new Item(path, hash, icolor.value()));
+        }
+
+        void appendDir(const QString &path)
+        {
+            const auto response = QMessageBox::question(mTreeWidget, "",
+                tr("'%1' is a directory.\nDo you want to add all files from this directory?").arg(path));
+
+            if (response != QMessageBox::Yes)
+                return;
+
+            QDirIterator files(path, QDir::Files | QDir::Hidden, QDirIterator::Subdirectories);
+            while (files.hasNext())
+            {
+                appendFile(files.next());
+            }
+        }
+
+        QList<Item*> mItems; ///< Generated items
+        FileList* mTreeWidget = nullptr;
+        QStringList mWarnings; ///< Localized non-fatal error messages
+        QMap<QByteArray, QColor> mColors; ///< Each hash have unique color
+        ColorGenerator mColorGenerator;
+    };
+
+    Collector collector(this);
+
+    {
+        WidgetLocker widgetLocker(this);
+        AppCursorLocker cursorLocker;
+
+        collector.collect(urls);
+
+        for (const auto item: collector.collected())
+            insertTopLevelItem(count(), item);
+    }
+
+    if (!collector.warnings().isEmpty())
+        QMessageBox::warning(this, "", collector.warnings().join("\n"));
 }
 
 void FileList::highlightDropArea(bool on)
@@ -118,77 +208,6 @@ QModelIndex FileList::indexFromRow(int row) const
 int FileList::count() const
 {
     return topLevelItemCount();
-}
-
-QPixmap FileList::coloredSquarePixmap(QColor color, int size)
-{
-    QPixmap pix(size, size);
-    QPainter painer(&pix);
-    painer.setBrush(color);
-    painer.setPen(Qt::black);
-    painer.drawRect(pix.rect().adjusted(1, 1, -2, -2));
-    return pix;
-}
-class ColorGenerator
-{
-public:
-    QColor next() {
-        return color(mColor++);
-    }
-
-private:
-    QColor color(int id) {
-        if (id < Qt::transparent)
-            return static_cast<Qt::GlobalColor>(id);
-
-        const int r = qrand() % 255;
-        const int g = qrand() % 255;
-        const int b = qrand() % 255;
-        return { r, g, b };
-    }
-
-    int mColor = Qt::white;
-};
-
-void FileList::calculateHashes()
-{
-    WidgetLocker wl(this);
-    AppCursorLocker acl;
-
-    QMap<QByteArray, QColor> colors; // hash --> color
-    ColorGenerator colorGenerator;
-
-    QStringList warnings;
-
-    for (int row=0; row<count(); ++row)
-    {
-        try
-        {
-            auto item = static_cast<Item*>(topLevelItem(row));
-
-            StatusMessage::show(tr("Calculate hash for '%1'...").arg(path(row)), StatusMessage::mcInfinite);
-            const auto hash = item->calculateHash();
-
-            // it is already known hash or a brand new one?
-
-            auto icolor = colors.find(hash);
-            if (icolor == colors.cend())
-                icolor = colors.insert(hash, colorGenerator.next());
-            item->setIcon(0, coloredSquarePixmap(icolor.value()));
-        }
-        catch (const QString& warningMessage)
-        {
-            warnings.append(warningMessage);
-        }
-    }
-
-    if (!warnings.isEmpty())
-        QMessageBox::warning(this, "", warnings.join("\n"));
-
-    StatusMessage::show(tr("There are %1/%2 unique files")
-                            .arg(colors.size())
-                            .arg(count()),
-                        StatusMessage::mcInfinite);
 }
 
 void FileList::removeSelectedItems()
@@ -237,32 +256,25 @@ void FileList::showDuplicates()
     StatusMessage::show(tr("No duplicates after row %1").arg(topRow));
 }
 
-FileList::Item::Item(const QFileInfo& fileInfo) :
+FileList::Item::Item(const QFileInfo& fileInfo, const QByteArray& hash, QColor color) :
     QTreeWidgetItem({fileInfo.fileName(),
                     fileInfo.dir().path(),
                     QString::number(fileInfo.size()),
-                    fileInfo.lastModified().toString(Qt::SystemLocaleShortDate)}),
+                    fileInfo.lastModified().toString(Qt::SystemLocaleShortDate),
+                    QString(hash.toBase64())}),
     mFileInfo(fileInfo)
 {
-
+    setIcon(eName, coloredSquarePixmap(color));
 }
 
-QByteArray FileList::Item::calculateHash()
+QPixmap FileList::Item::coloredSquarePixmap(QColor color, int size)
 {
-    QFile file(absoluteFilePath());
-    QCryptographicHash hashCalculator(QCryptographicHash::Algorithm::Sha1);
-
-    // calculate file sha-1 hash
-
-    if (!file.open(QIODevice::ReadOnly))
-        throw tr("Unable to open '%1'").arg(file.fileName());
-
-    if (!hashCalculator.addData(&file))
-        throw tr("Cannot read '%1'").arg(file.fileName());
-
-    const auto hash = hashCalculator.result();
-    setText(Item::eHash, hash.toBase64());
-    return hash;
+    QPixmap pix(size, size);
+    QPainter painer(&pix);
+    painer.setBrush(color);
+    painer.setPen(Qt::black);
+    painer.drawRect(pix.rect().adjusted(1, 1, -2, -2));
+    return pix;
 }
 
 bool FileList::Item::operator <(const QTreeWidgetItem& other) const
