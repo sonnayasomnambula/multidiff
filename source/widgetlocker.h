@@ -16,6 +16,7 @@ public:
    ~AppCursorLocker()
     {
         QApplication::restoreOverrideCursor();
+        QCoreApplication::processEvents();
     }
 };
 
@@ -34,6 +35,7 @@ public:
     ~WidgetLocker()
     {
         mWidget->setEnabled(mEnabledBackup);
+        QCoreApplication::processEvents();
     }
 
 private:
