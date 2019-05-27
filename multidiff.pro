@@ -26,12 +26,8 @@ CONFIG += c++14
 
 INCLUDEPATH += \
     source \
-    ../../proteus/proteus/widgets/common \
-    ../../proteus/qt_lib/common/inc
 
 SOURCES += \
-    ../../proteus/proteus/widgets/common/eventwatcher.cpp \
-    ../../proteus/qt_lib/common/src/algo.cpp \
     source/filelist.cpp \
     source/main.cpp \
     source/mainwindow.cpp \
@@ -39,8 +35,6 @@ SOURCES += \
     source/statusmessage.cpp
 
 HEADERS += \
-    ../../proteus/proteus/widgets/common/eventwatcher.h \
-    ../../proteus/qt_lib/common/inc/algo.h \
     source/filelist.h \
     source/mainwindow.h \
     source/settingsdialog.h \

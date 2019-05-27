@@ -11,9 +11,6 @@
 #include <QMimeData>
 #include <QPainter>
 
-#include <algo.h>
-#include <eventwatcher.h>
-
 #include "statusmessage.h"
 #include "widgetlocker.h"
 
@@ -108,8 +105,9 @@ void FileList::highlight(bool on)
 
 bool FileList::acceptable(const QMimeData* mime)
 {
-    return mime->hasUrls() && !mime->urls().isEmpty() &&
-            Algo::all_of(mime->urls(), [](const QUrl& url){ return url.isLocalFile(); });
+    const auto urls = mime->urls();
+    return mime->hasUrls() && !urls.isEmpty() &&
+            std::all_of(urls.cbegin(), urls.cend(), [](const QUrl& url){ return url.isLocalFile(); });
 }
 
 QModelIndex FileList::indexFromRow(int row) const
