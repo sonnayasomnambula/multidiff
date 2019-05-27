@@ -237,6 +237,8 @@ void FileList::showDuplicates()
     if (topRow >= count())
         topRow = 0;
 
+    StatusMessage::show(tr("Search..."), StatusMessage::mcInfinite);
+
     for (int top = topRow; top < count(); ++top)
     {
         const auto hash = topLevelItem(top)->text(Item::eHash);
@@ -248,8 +250,12 @@ void FileList::showDuplicates()
                 selectionModel()->select(indexFromRow(row), QItemSelectionModel::Select | QItemSelectionModel::Rows);
         }
 
-        if (selectionModel()->selectedRows().size() > 1)
+        const auto size = selectionModel()->selectedRows().size();
+        if (size > 1)
+        {
+            StatusMessage::show(tr("Found %n file(s) with hash %1", "", size).arg(hash), StatusMessage::mcInfinite);
             return;
+        }
     }
 
     selectionModel()->clear();
