@@ -5,6 +5,7 @@
 #include <QDragEnterEvent>
 #include <QDebug>
 #include <QHeaderView>
+#include <QMessageBox>
 #include <QProcess>
 #include <QSettings>
 
@@ -96,6 +97,16 @@ void MainWindow::on_actionDiff_triggered()
         StatusMessage::show(tr("Please set side-by-side diff command"), 15000);
         on_actionSettings_triggered();
         return;
+    }
+
+    QFileInfo f1(selection[0]);
+    QFileInfo f2(selection[1]);
+    constexpr qint64 halfMB= 512 * 1024;
+    if (f1.size() > halfMB || f2.size() > halfMB)
+    {
+        const auto response = QMessageBox::question(this, "", tr("Files are too big! Show anyway?"));
+        if (response != QMessageBox::Yes)
+            return;
     }
 
     QProcess::execute(command.arg(selection[0], selection[1]));
