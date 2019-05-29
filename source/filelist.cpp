@@ -196,8 +196,8 @@ void FileList::updateIcons()
 void FileList::highlightDropArea(bool on)
 {
     static const auto normal = palette();
-    static const auto highlighted = [this]() {
-        QPalette p = palette();
+    static const auto highlighted = [this] {
+        auto p = palette();
         p.setColor(QPalette::Window, p.color(QPalette::Highlight));
         p.setColor(QPalette::Base, p.color(QPalette::Highlight).lighter(220));
         return p;

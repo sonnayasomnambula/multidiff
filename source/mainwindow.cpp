@@ -63,7 +63,7 @@ void MainWindow::storeSettings()
     settings.setValue(tags.main.header, ui->fileList->header()->saveState());
 }
 
-void MainWindow::on_actionSettings_triggered()
+bool MainWindow::on_actionSettings_triggered()
 {
     QSettings settings;
     SettingsDialog dialog;
@@ -71,9 +71,10 @@ void MainWindow::on_actionSettings_triggered()
     dialog.setDiffCommand(settings.value(tags.diff.command).toString());
 
     if (dialog.exec() != QDialog::Accepted)
-        return;
+        return false;
 
     settings.setValue(tags.diff.command, dialog.diffCommand());
+    return true;
 }
 
 void MainWindow::on_actionRemove_triggered()
@@ -95,8 +96,8 @@ void MainWindow::on_actionDiff_triggered()
     if (command.isEmpty())
     {
         StatusMessage::show(tr("Please set side-by-side diff command"), 15000);
-        on_actionSettings_triggered();
-        return;
+        if (!on_actionSettings_triggered())
+            return;
     }
 
     QFileInfo f1(selection[0]);

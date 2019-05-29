@@ -16,7 +16,7 @@ public:
     ~MainWindow();
 
 private slots:
-    void on_actionSettings_triggered();
+    bool on_actionSettings_triggered();
     void on_actionRemove_triggered();
     void on_actionDiff_triggered();
     void on_actionEdit_triggered();
