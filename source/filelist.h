@@ -6,7 +6,6 @@
 #include <QFileInfo>
 #include <QTreeWidget>
 
-
 /// QTreeWidget with top-level items only, presented file info
 class FileList : public QTreeWidget
 {
@@ -16,6 +15,7 @@ public:
     explicit FileList(QWidget* parent);
 
     void append(const QList<QUrl>& urls);
+    int count() const { return topLevelItemCount(); }
 
     /// full filename with path
     QString path(int row) const;
@@ -34,6 +34,10 @@ private:
     void dragLeaveEvent(QDragLeaveEvent* e) override;
     void dropEvent(QDropEvent* e) override;
 
+    /// Update icons using hash
+    /// Also shows a message with a number of unique colors
+    void updateIcons();
+
     /// Highlight the drop area
     void highlightDropArea(bool on = true);
 
@@ -41,7 +45,6 @@ private:
     static bool isAcceptable(const QMimeData* mime);
 
     QModelIndex indexFromRow(int row) const;
-    int count() const;
 
     class Item : public QTreeWidgetItem
     {
@@ -50,9 +53,12 @@ private:
         /// Only for reference - all is set in the .ui file
         enum { eName, eDir, eSize, eLastModified, eHash, ColCount };
 
-        explicit Item(const QFileInfo& fileInfo, const QByteArray& hash, QColor color);
+        explicit Item(const QFileInfo& fileInfo, const QByteArray& hash);
+
+        void setColor(QColor color);
 
         QString absoluteFilePath() const { return mFileInfo.absoluteFilePath(); }
+        QByteArray hash() const;
 
         /// Draw a colored square pixmap with 1px black border
         static QPixmap coloredSquarePixmap(QColor color, int size = 64);
