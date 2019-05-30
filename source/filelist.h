@@ -34,10 +34,6 @@ private:
     void dragLeaveEvent(QDragLeaveEvent* e) override;
     void dropEvent(QDropEvent* e) override;
 
-    /// Update icons using hash
-    /// Also shows a message with a number of unique colors
-    void updateIcons();
-
     /// Highlight the drop area
     void highlightDropArea(bool on = true);
 

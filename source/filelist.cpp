@@ -88,12 +88,14 @@ void FileList::append(const QList<QUrl>& urls)
                     mWarnings.append(tr("Cannot add '%1'").arg(path));
 
                 if (mLastClickedButton == QMessageBox::Cancel)
-                    return;
+                    break;
             }
+
+            updateIcons();
         }
 
         const auto& warnings() const { return mWarnings; }
-        const auto& collected() const { return mItems; }
+        auto& collected() { return mItems; }
 
     private:
         void appendFile(const QString& path)
@@ -140,7 +142,44 @@ void FileList::append(const QList<QUrl>& urls)
             }
         }
 
-        QList<Item*> mItems; ///< Generated items
+        void updateIcons()
+        {
+            class ColorGenerator
+            {
+            public:
+                QColor next() {
+                    if (mColor < Qt::transparent)
+                        return static_cast<Qt::GlobalColor>(mColor++);
+
+                    return { mRand.bounded(255), mRand.bounded(255), mRand.bounded(255) };
+                }
+
+            private:
+                int mColor = Qt::white;
+                QRandomGenerator mRand;
+            };
+
+            ColorGenerator uniqueColors;
+            QMap<QByteArray, QColor> colors; // each hash have unique color
+
+            for (auto i: mItems)
+            {
+                auto item = static_cast<Item*>(i);
+                const auto hash = item->hash();
+
+                // it is already known hash or a brand new one?
+
+                auto icolor = colors.find(hash);
+                if (icolor == colors.cend())
+                    icolor = colors.insert(hash, uniqueColors.next());
+
+                item->setColor(*icolor);
+            }
+
+            StatusMessage::show(tr("There are %n/%1 unique file(s)", "", colors.size()).arg(mItems.size()), StatusMessage::mcInfinite);
+        }
+
+        QList<QTreeWidgetItem*> mItems; ///< Generated items
         FileList* mTreeWidget = nullptr;
         QStringList mWarnings; ///< Localized non-fatal error messages
         /// The last button clicked by the user; values YesToAll or Cancel require some special processing
@@ -155,51 +194,13 @@ void FileList::append(const QList<QUrl>& urls)
 
         collector.collect(urls);
 
-        for (const auto item: collector.collected())
-            insertTopLevelItem(count(), item);
-
-        updateIcons();
+        insertTopLevelItems(count(), collector.collected());
+//        for (const auto item: collector.collected())
+//            insertTopLevelItem(count(), item);
     }
 
     if (!collector.warnings().isEmpty())
         QMessageBox::warning(this, "", collector.warnings().join("\n"));
-}
-
-void FileList::updateIcons()
-{
-    class ColorGenerator
-    {
-    public:
-        QColor next() {
-            if (mColor < Qt::transparent)
-                return static_cast<Qt::GlobalColor>(mColor++);
-
-            return { mRand.bounded(255), mRand.bounded(255), mRand.bounded(255) };
-        }
-
-    private:
-        int mColor = Qt::white;
-        QRandomGenerator mRand;
-    };
-
-    ColorGenerator uniqueColors;
-    QMap<QByteArray, QColor> colors; // each hash have unique color
-
-    for (int row = 0; row < count(); row++)
-    {
-        auto item = static_cast<Item*>(topLevelItem(row));
-        const auto hash = item->hash();
-
-        // it is already known hash or a brand new one?
-
-        auto icolor = colors.find(hash);
-        if (icolor == colors.cend())
-            icolor = colors.insert(hash, uniqueColors.next());
-
-        item->setColor(*icolor);
-    }
-
-    StatusMessage::show(tr("There are %n/%1 unique file(s)", "", colors.size()).arg(count()), StatusMessage::mcInfinite);
 }
 
 void FileList::highlightDropArea(bool on)
