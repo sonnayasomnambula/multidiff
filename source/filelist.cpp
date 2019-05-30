@@ -86,6 +86,9 @@ void FileList::append(const QList<QUrl>& urls)
                     appendDir(path);
                 else
                     mWarnings.append(tr("Cannot add '%1'").arg(path));
+
+                if (mLastClickedButton == QMessageBox::Cancel)
+                    return;
             }
         }
 
@@ -120,11 +123,15 @@ void FileList::append(const QList<QUrl>& urls)
 
         void appendDir(const QString &path)
         {
-            const auto response = QMessageBox::question(mTreeWidget, "",
-                tr("'%1' is a directory.\nDo you want to add all files from this directory?").arg(path));
+            if (mLastClickedButton != QMessageBox::YesToAll)
+            {
+                mLastClickedButton = QMessageBox::question(mTreeWidget, "",
+                    tr("'%1' is a directory.\nDo you want to add all files from this directory?").arg(path),
+                    QMessageBox::YesToAll | QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
 
-            if (response != QMessageBox::Yes)
-                return;
+                if (mLastClickedButton == QMessageBox::No || mLastClickedButton == QMessageBox::Cancel)
+                    return;
+            }
 
             QDirIterator files(path, QDir::Files | QDir::Hidden, QDirIterator::Subdirectories);
             while (files.hasNext())
@@ -136,6 +143,8 @@ void FileList::append(const QList<QUrl>& urls)
         QList<Item*> mItems; ///< Generated items
         FileList* mTreeWidget = nullptr;
         QStringList mWarnings; ///< Localized non-fatal error messages
+        /// The last button clicked by the user; values YesToAll or Cancel require some special processing
+        QMessageBox::StandardButton mLastClickedButton = QMessageBox::NoButton;
     };
 
     Collector collector(this);
