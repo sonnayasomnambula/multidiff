@@ -13,6 +13,7 @@
 #include <QRandomGenerator>
 #include <QSortFilterProxyModel>
 #include <QStyledItemDelegate>
+#include <QTimer>
 
 #include "fileinfomodel.h"
 #include "statusmessage.h"
@@ -47,7 +48,7 @@ FileList::FileList(QWidget* parent) :
         Q_ASSERT(mClicked.size() == 3);
 
         if (column >= 0 && mClicked[0] == mClicked[1] && mClicked[1] == mClicked[2])
-            sortByColumn(-1);
+            QTimer::singleShot(1, [this]{ sortByColumn(-1); });
     });
 }
 

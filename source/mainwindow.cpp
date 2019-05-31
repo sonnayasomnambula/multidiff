@@ -27,6 +27,8 @@ struct Tags
     struct Diff {
         const QString command = QStringLiteral("diff/command");
     } const diff;
+
+    const QString version = QStringLiteral("version");
 } static const tags;
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -55,6 +57,9 @@ void MainWindow::closeEvent(QCloseEvent* e)
 void MainWindow::loadSettings()
 {
     QSettings settings;
+    if (settings.value(tags.version).toString() != qApp->applicationVersion())
+        return;
+
     restoreGeometry(settings.value(tags.main.geometry).toByteArray());
     restoreState(settings.value(tags.main.state).toByteArray());
     ui->fileList->header()->restoreState(settings.value(tags.main.header).toByteArray());
@@ -63,9 +68,11 @@ void MainWindow::loadSettings()
 void MainWindow::storeSettings()
 {
     QSettings settings;
+    settings.setValue(tags.version, qApp->applicationVersion());
     settings.setValue(tags.main.geometry, saveGeometry());
     settings.setValue(tags.main.state, saveState());
     settings.setValue(tags.main.header, ui->fileList->header()->saveState());
+
 }
 
 bool MainWindow::on_actionSettings_triggered()
