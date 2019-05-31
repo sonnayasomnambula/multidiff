@@ -101,6 +101,9 @@ void FileList::add(const QList<QUrl>& urls)
 
 void FileList::removeSelected()
 {
+    AppCursorLocker acl;
+    WidgetLocker wl(this);
+
     const auto selection = selectionModel()->selectedRows();
 
     // extract rows, map proxy to data, sort, remove duplicates if any
@@ -114,6 +117,8 @@ void FileList::removeSelected()
 
 void FileList::selectNextDuplicates()
 {
+    AppCursorLocker acl;
+
     const auto rowCount = mProxy->rowCount();
 
     if (rowCount == 0)
