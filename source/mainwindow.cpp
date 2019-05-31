@@ -4,13 +4,16 @@
 #include <QDesktopServices>
 #include <QDragEnterEvent>
 #include <QDebug>
+#include <QFileInfo>
 #include <QHeaderView>
 #include <QMessageBox>
 #include <QProcess>
 #include <QSettings>
 
+#include "fileinfomodel.h"
 #include "settingsdialog.h"
 #include "statusmessage.h"
+#include "widgetlocker.h"
 
 /// tags for QSettings class
 struct Tags
@@ -31,6 +34,8 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    connect(ui->fileList, &FileList::doubleClicked, this, &MainWindow::on_actionEdit_triggered);
+
     loadSettings();
     StatusMessage::setStatusBar(ui->statusBar);
     StatusMessage::show(tr("Drag'n'drop files here"), StatusMessage::mcInfinite);
@@ -79,12 +84,13 @@ bool MainWindow::on_actionSettings_triggered()
 
 void MainWindow::on_actionRemove_triggered()
 {
-    ui->fileList->removeSelectedItems();
+    ui->fileList->removeSelected();
+    StatusMessage::clear();
 }
 
 void MainWindow::on_actionDiff_triggered()
 {
-    const auto selection = ui->fileList->selectedFiles();
+    const auto selection = ui->fileList->selectionModel()->selectedRows();
     if (selection.size() < 2)
     {
         StatusMessage::show(tr("Nothing selected"));
@@ -100,8 +106,8 @@ void MainWindow::on_actionDiff_triggered()
             return;
     }
 
-    QFileInfo f1(selection[0]);
-    QFileInfo f2(selection[1]);
+    const auto f1(ui->fileList->fileInfo(selection[0]));
+    const auto f2(ui->fileList->fileInfo(selection[1]));
     constexpr qint64 halfMB= 512 * 1024;
     if (f1.size() > halfMB || f2.size() > halfMB)
     {
@@ -110,22 +116,23 @@ void MainWindow::on_actionDiff_triggered()
             return;
     }
 
-    QProcess::execute(command.arg(selection[0], selection[1]));
+    QProcess::execute(command.arg(f1.absoluteFilePath(), f2.absoluteFilePath()));
 }
 
 void MainWindow::on_actionEdit_triggered()
 {
-    const auto selection = ui->fileList->selectedFiles();
+    const auto selection = ui->fileList->selectionModel()->selectedRows();
     if (selection.isEmpty())
     {
         StatusMessage::show(tr("Nothing selected"));
         return;
     }
 
-    QDesktopServices::openUrl(QUrl::fromLocalFile(selection.first()));
+    const auto path = ui->fileList->fileInfo(selection.first()).absoluteFilePath();
+    QDesktopServices::openUrl(QUrl::fromLocalFile(path));
 }
 
 void MainWindow::on_actionShow_duplicates_triggered()
 {
-    ui->fileList->showDuplicates();
+    ui->fileList->selectNextDuplicates();
 }

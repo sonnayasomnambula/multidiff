@@ -4,29 +4,28 @@
 #include <deque>
 
 #include <QFileInfo>
-#include <QTreeWidget>
+#include <QTreeView>
+#include <QUrl>
+
+class FileInfoModel;
+class QSortFilterProxyModel;
 
 /// QTreeWidget with top-level items only, presented file info
-class FileList : public QTreeWidget
+class FileList : public QTreeView
 {
     Q_OBJECT
 
 public:
     explicit FileList(QWidget* parent);
 
-    void append(const QList<QUrl>& urls);
-    int count() const { return topLevelItemCount(); }
+    void add(const QList<QUrl>& urls);
+    void removeSelected();
 
-    /// full filename with path
-    QString path(int row) const;
+    /// Select the rows with the same 'Hash' column value
+    /// Search from {current row + 1} or from begin, if nothing selected
+    void selectNextDuplicates();
 
-    void removeSelectedItems();
-
-    /// \return full filename of each selected item
-    QStringList selectedFiles() const;
-
-    /// Search for duplicates beginning {current row + 1} and select it
-    void showDuplicates();
+    QFileInfo fileInfo(const QModelIndex& index) const;
 
 private:
     void dragEnterEvent(QDragEnterEvent* e) override;
@@ -40,30 +39,8 @@ private:
     /// Only local files can be dropped
     static bool isAcceptable(const QMimeData* mime);
 
-    QModelIndex indexFromRow(int row) const;
-
-    class Item : public QTreeWidgetItem
-    {
-    public:
-        /// Columns
-        /// Only for reference - all is set in the .ui file
-        enum { eName, eDir, eSize, eLastModified, eHash, ColCount };
-
-        explicit Item(const QFileInfo& fileInfo, const QByteArray& hash);
-
-        void setColor(QColor color);
-
-        QString absoluteFilePath() const { return mFileInfo.absoluteFilePath(); }
-        QByteArray hash() const;
-
-        /// Draw a colored square pixmap with 1px black border
-        static QPixmap coloredSquarePixmap(QColor color, int size = 64);
-
-    private:
-        bool operator <(const QTreeWidgetItem& other) const;
-
-        QFileInfo mFileInfo;
-    };
+    FileInfoModel* mModel = nullptr;
+    QSortFilterProxyModel* mProxy = nullptr;
 };
 
 #endif // FILELIST_H

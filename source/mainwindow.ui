@@ -23,52 +23,15 @@
       <property name="dragDropMode">
        <enum>QAbstractItemView::DropOnly</enum>
       </property>
-      <property name="alternatingRowColors">
-       <bool>true</bool>
+      <property name="defaultDropAction">
+       <enum>Qt::CopyAction</enum>
       </property>
       <property name="selectionMode">
        <enum>QAbstractItemView::ExtendedSelection</enum>
       </property>
-      <property name="uniformRowHeights">
-       <bool>false</bool>
-      </property>
-      <property name="itemsExpandable">
-       <bool>false</bool>
-      </property>
       <property name="sortingEnabled">
        <bool>true</bool>
       </property>
-      <property name="animated">
-       <bool>false</bool>
-      </property>
-      <property name="columnCount">
-       <number>5</number>
-      </property>
-      <column>
-       <property name="text">
-        <string>Name</string>
-       </property>
-      </column>
-      <column>
-       <property name="text">
-        <string>Path</string>
-       </property>
-      </column>
-      <column>
-       <property name="text">
-        <string>Size</string>
-       </property>
-      </column>
-      <column>
-       <property name="text">
-        <string>Last Modified</string>
-       </property>
-      </column>
-      <column>
-       <property name="text">
-        <string>Hash</string>
-       </property>
-      </column>
      </widget>
     </item>
    </layout>
@@ -155,7 +118,7 @@
  <customwidgets>
   <customwidget>
    <class>FileList</class>
-   <extends>QTreeWidget</extends>
+   <extends>QTreeView</extends>
    <header>filelist.h</header>
   </customwidget>
  </customwidgets>

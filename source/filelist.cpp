@@ -11,13 +11,35 @@
 #include <QMimeData>
 #include <QPainter>
 #include <QRandomGenerator>
+#include <QSortFilterProxyModel>
+#include <QStyledItemDelegate>
 
+#include "fileinfomodel.h"
 #include "statusmessage.h"
 #include "widgetlocker.h"
 
-FileList::FileList(QWidget* parent) :
-    QTreeWidget(parent)
+class Base64Delegate : public QStyledItemDelegate
 {
+public:
+    explicit Base64Delegate(QObject *parent = nullptr) :
+        QStyledItemDelegate(parent)
+    {}
+
+    QString displayText(const QVariant& value, const QLocale&) const override
+    {
+        return value.toByteArray().toBase64();
+    }
+};
+
+FileList::FileList(QWidget* parent) :
+    QTreeView(parent),
+    mModel(new FileInfoModel(this)),
+    mProxy(new QSortFilterProxyModel(this))
+{
+    mProxy->setSourceModel(mModel);
+    setModel(mProxy);
+    setItemDelegateForColumn(FileInfoModel::eHash, new Base64Delegate(this));
+
     // Disable the sort after 3rd click on the same column header
     connect(header(), &QHeaderView::sortIndicatorChanged, [this, mClicked = std::deque<int>{ -1, -1, -1 }](int column) mutable {
         mClicked.push_front(column);
@@ -27,11 +49,6 @@ FileList::FileList(QWidget* parent) :
         if (column >= 0 && mClicked[0] == mClicked[1] && mClicked[1] == mClicked[2])
             sortByColumn(-1);
     });
-}
-
-QString FileList::path(int row) const
-{
-    return static_cast<Item*>(topLevelItem(row))->absoluteFilePath();
 }
 
 void FileList::dragEnterEvent(QDragEnterEvent* e)
@@ -62,145 +79,89 @@ void FileList::dropEvent(QDropEvent* e)
         return;
 
     e->acceptProposedAction();
-    append(e->mimeData()->urls());
+    add(e->mimeData()->urls());
 }
 
-void FileList::append(const QList<QUrl>& urls)
+void FileList::add(const QList<QUrl>& urls)
 {
-    /// The class accumulates warnings while generating a list of FileList::Item
-    class Collector
-    {
-    public:
-        Collector(FileList* treeWidget) : mTreeWidget(treeWidget) {}
-
-        void collect(const QList<QUrl>& urls)
-        {
-            for (const auto& url: urls)
-            {
-                const auto path = url.toLocalFile();
-                QFileInfo entry(path);
-
-                if (entry.isFile())
-                    appendFile(path);
-                else if (entry.isDir())
-                    appendDir(path);
-                else
-                    mWarnings.append(tr("Cannot add '%1'").arg(path));
-
-                if (mLastClickedButton == QMessageBox::Cancel)
-                    break;
-            }
-
-            updateIcons();
-        }
-
-        const auto& warnings() const { return mWarnings; }
-        auto& collected() { return mItems; }
-
-    private:
-        void appendFile(const QString& path)
-        {
-            QFile file(path);
-            QCryptographicHash hashCalculator(QCryptographicHash::Algorithm::Sha1);
-
-            // calculate file sha-1 hash
-
-            if (!file.open(QIODevice::ReadOnly))
-            {
-                mWarnings.append(tr("Unable to open '%1'").arg(path));
-                return;
-            }
-
-            if (!hashCalculator.addData(&file))
-            {
-                mWarnings.append(tr("Cannot read '%1'").arg(path));
-                return;
-            }
-
-            StatusMessage::show(tr("Calculate hash for '%1'...").arg(path), StatusMessage::mcInfinite);
-            const auto hash = hashCalculator.result();
-
-            mItems.append(new Item(path, hash));
-        }
-
-        void appendDir(const QString &path)
-        {
-            if (mLastClickedButton != QMessageBox::YesToAll)
-            {
-                mLastClickedButton = QMessageBox::question(mTreeWidget, "",
-                    tr("'%1' is a directory.\nDo you want to add all files from this directory?").arg(path),
-                    QMessageBox::YesToAll | QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
-
-                if (mLastClickedButton == QMessageBox::No || mLastClickedButton == QMessageBox::Cancel)
-                    return;
-            }
-
-            QDirIterator files(path, QDir::Files | QDir::Hidden, QDirIterator::Subdirectories);
-            while (files.hasNext())
-            {
-                appendFile(files.next());
-            }
-        }
-
-        void updateIcons()
-        {
-            class ColorGenerator
-            {
-            public:
-                QColor next() {
-                    if (mColor < Qt::transparent)
-                        return static_cast<Qt::GlobalColor>(mColor++);
-
-                    return { mRand.bounded(255), mRand.bounded(255), mRand.bounded(255) };
-                }
-
-            private:
-                int mColor = Qt::white;
-                QRandomGenerator mRand;
-            };
-
-            ColorGenerator uniqueColors;
-            QMap<QByteArray, QColor> colors; // each hash have unique color
-
-            for (auto i: mItems)
-            {
-                auto item = static_cast<Item*>(i);
-                const auto hash = item->hash();
-
-                // it is already known hash or a brand new one?
-
-                auto icolor = colors.find(hash);
-                if (icolor == colors.cend())
-                    icolor = colors.insert(hash, uniqueColors.next());
-
-                item->setColor(*icolor);
-            }
-
-            StatusMessage::show(tr("There are %n/%1 unique file(s)", "", colors.size()).arg(mItems.size()), StatusMessage::mcInfinite);
-        }
-
-        QList<QTreeWidgetItem*> mItems; ///< Generated items
-        FileList* mTreeWidget = nullptr;
-        QStringList mWarnings; ///< Localized non-fatal error messages
-        /// The last button clicked by the user; values YesToAll or Cancel require some special processing
-        QMessageBox::StandardButton mLastClickedButton = QMessageBox::NoButton;
-    };
-
-    Collector collector(this);
+    FileInfoModel::Collector collector(this);
 
     {
-        WidgetLocker widgetLocker(this);
-        AppCursorLocker cursorLocker;
+        AppCursorLocker acl;
+        WidgetLocker wl(this);
 
         collector.collect(urls);
-
-        insertTopLevelItems(count(), collector.collected());
-//        for (const auto item: collector.collected())
-//            insertTopLevelItem(count(), item);
+        mModel->add(collector.collected());
     }
 
     if (!collector.warnings().isEmpty())
         QMessageBox::warning(this, "", collector.warnings().join("\n"));
+}
+
+void FileList::removeSelected()
+{
+    const auto selection = selectionModel()->selectedRows();
+
+    // extract rows, map proxy to data, sort, remove duplicates if any
+    std::set<int, std::greater<int>> rows;
+    std::transform(selection.cbegin(), selection.cend(), std::inserter(rows, rows.begin()), [this](const QModelIndex& index) {
+        return mProxy->mapToSource(index).row();
+    });
+
+    mModel->remove(rows);
+}
+
+void FileList::selectNextDuplicates()
+{
+    const auto rowCount = mProxy->rowCount();
+
+    if (rowCount == 0)
+    {
+        StatusMessage::show(tr("No files"));
+        return;
+    }
+
+    int topRow = currentIndex().row() + 1;
+    if (selectionModel()->selectedRows().isEmpty() || topRow >= rowCount)
+        topRow = 0;
+
+    auto top = mProxy->index(topRow, FileInfoModel::eHash);
+    StatusMessage::show(tr("Search..."), StatusMessage::mcInfinite);
+
+    while (top.isValid())
+    {
+        const auto hash = mProxy->data(top);
+        setCurrentIndex(top);
+
+        auto index = top;
+        while (index = indexBelow(index), index.isValid())
+        {
+            if (mProxy->data(index) == hash)
+                selectionModel()->select(index, QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        }
+
+        const auto size = selectionModel()->selectedRows().size();
+        if (size > 1)
+        {
+            const QString hashString(hash.toByteArray().toBase64());
+            StatusMessage::show(tr("Found %n file(s) with hash %1", "", size).arg(hashString),
+                                StatusMessage::mcInfinite);
+            return;
+        }
+
+        top = indexBelow(top);
+    }
+
+    selectionModel()->clear();
+    StatusMessage::show(tr("No duplicates after row %1").arg(topRow));
+}
+
+QFileInfo FileList::fileInfo(const QModelIndex& index) const
+{
+    if (index.row() >= mModel->rowCount())
+        return {};
+
+    return mModel->item(mProxy->mapToSource(index).row()).fileInfo;
 }
 
 void FileList::highlightDropArea(bool on)
@@ -221,109 +182,4 @@ bool FileList::isAcceptable(const QMimeData* mime)
     const auto urls = mime->urls();
     return mime->hasUrls() && !urls.isEmpty() &&
             std::all_of(urls.cbegin(), urls.cend(), [](const QUrl& url){ return url.isLocalFile(); });
-}
-
-QModelIndex FileList::indexFromRow(int row) const
-{
-    return indexFromItem(topLevelItem(row));
-}
-
-void FileList::removeSelectedItems()
-{
-    for (auto item: selectedItems())
-        delete takeTopLevelItem(indexOfTopLevelItem(item));
-    StatusMessage::clear();
-}
-
-QStringList FileList::selectedFiles() const
-{
-    QStringList list;
-    for (auto i: selectionModel()->selectedRows())
-        list.append(path(i.row()));
-    return list;
-}
-
-void FileList::showDuplicates()
-{
-    if (count() == 0)
-    {
-        StatusMessage::show(tr("No files"));
-        return;
-    }
-
-    int topRow = selectedIndexes().isEmpty() ? 0 : selectedIndexes().first().row() + 1;
-    if (topRow >= count())
-        topRow = 0;
-
-    StatusMessage::show(tr("Search..."), StatusMessage::mcInfinite);
-
-    for (int top = topRow; top < count(); ++top)
-    {
-        const auto hash = topLevelItem(top)->text(Item::eHash);
-        setCurrentIndex(indexFromRow(top));
-
-        for (int row = top + 1; row < count(); ++row)
-        {
-            if (topLevelItem(row)->text(Item::eHash) == hash)
-                selectionModel()->select(indexFromRow(row), QItemSelectionModel::Select | QItemSelectionModel::Rows);
-        }
-
-        const auto size = selectionModel()->selectedRows().size();
-        if (size > 1)
-        {
-            StatusMessage::show(tr("Found %n file(s) with hash %1", "", size).arg(hash), StatusMessage::mcInfinite);
-            return;
-        }
-    }
-
-    selectionModel()->clear();
-    StatusMessage::show(tr("No duplicates after row %1").arg(topRow));
-}
-
-FileList::Item::Item(const QFileInfo& fileInfo, const QByteArray& hash) :
-    QTreeWidgetItem({fileInfo.fileName(),
-                    fileInfo.dir().path(),
-                    QString::number(fileInfo.size()),
-                    fileInfo.lastModified().toString(Qt::SystemLocaleShortDate),
-                    QString(hash.toBase64())}),
-    mFileInfo(fileInfo)
-{
-
-}
-
-void FileList::Item::setColor(QColor color)
-{
-    setIcon(eName, coloredSquarePixmap(color));
-}
-
-QByteArray FileList::Item::hash() const
-{
-    return QByteArray::fromBase64(text(eHash).toLatin1());
-}
-
-QPixmap FileList::Item::coloredSquarePixmap(QColor color, int size)
-{
-    QPixmap pix(size, size);
-    QPainter painer(&pix);
-    painer.setBrush(color);
-    painer.setPen(Qt::black);
-    painer.drawRect(pix.rect().adjusted(1, 1, -2, -2));
-    return pix;
-}
-
-bool FileList::Item::operator <(const QTreeWidgetItem& other) const
-{
-    const auto& otherItem = static_cast<const Item&>(other);
-
-    switch (treeWidget()->sortColumn())
-    {
-    case eSize:
-        return mFileInfo.size() < otherItem.mFileInfo.size();
-
-    case eLastModified:
-        return mFileInfo.lastModified() < otherItem.mFileInfo.lastModified();
-
-    default:
-        return QTreeWidgetItem::operator <(other);
-    }
 }
