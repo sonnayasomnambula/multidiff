@@ -18,6 +18,7 @@ public:
 private slots:
     bool on_actionSettings_triggered();
     void on_actionRemove_triggered();
+    void on_actionDelete_file_triggered();
     void on_actionDiff_triggered();
     void on_actionEdit_triggered();
     void on_actionShow_duplicates_triggered();

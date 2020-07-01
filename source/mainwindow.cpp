@@ -95,6 +95,34 @@ void MainWindow::on_actionRemove_triggered()
     StatusMessage::clear();
 }
 
+void MainWindow::on_actionDelete_file_triggered()
+{
+    const auto selection = ui->fileList->selectionModel()->selectedRows();
+    if (QMessageBox::warning(
+                this,
+                tr("Remove files"),
+                tr("Remove %n file(s) from disk?", nullptr, selection.size()),
+                QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
+        return;
+
+    QMultiMap<QString, QModelIndex> removed; // path --> index
+    for (auto& row: selection) {
+        auto path = ui->fileList->fileInfo(row).absoluteFilePath();
+        if (removed.contains(path) || QFile(path).remove()) { // the list may contain duplicates
+            removed.insert(path, row);
+        } else {
+            QMessageBox::critical(
+                        this,
+                        tr("Remove files"),
+                        tr("Cannot remove '%1'").arg(path));
+            break;
+        }
+    }
+
+    ui->fileList->remove(removed.values());
+    StatusMessage::clear();
+}
+
 void MainWindow::on_actionDiff_triggered()
 {
     const auto selection = ui->fileList->selectionModel()->selectedRows();
@@ -123,7 +151,7 @@ void MainWindow::on_actionDiff_triggered()
             return;
     }
 
-    QProcess::execute(command.arg(f1.absoluteFilePath(), f2.absoluteFilePath()));
+    QProcess::execute(command.arg(f1.absoluteFilePath(), f2.absoluteFilePath()), {});
 }
 
 void MainWindow::on_actionEdit_triggered()

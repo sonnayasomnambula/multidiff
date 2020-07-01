@@ -55,6 +55,7 @@
     <addaction name="actionShow_duplicates"/>
     <addaction name="separator"/>
     <addaction name="actionRemove"/>
+    <addaction name="actionDelete_file"/>
     <addaction name="separator"/>
     <addaction name="actionSettings"/>
    </widget>
@@ -111,6 +112,14 @@
    </property>
    <property name="shortcut">
     <string>F3</string>
+   </property>
+  </action>
+  <action name="actionDelete_file">
+   <property name="text">
+    <string>Delete file from disk</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Del</string>
    </property>
   </action>
  </widget>

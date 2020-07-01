@@ -79,7 +79,7 @@ QVariant FileInfoModel::data(const QModelIndex& index, int role) const
     return {};
 }
 
-FileItem FileInfoModel::item(unsigned row) const
+FileItem FileInfoModel::item(int row) const
 {
     if (row < mData.size())
         return mData[row];

@@ -19,6 +19,7 @@ public:
     explicit FileList(QWidget* parent);
 
     void add(const QList<QUrl>& urls);
+    void remove(QModelIndexList what);
     void removeSelected();
 
     /// Select the rows with the same 'Hash' column value

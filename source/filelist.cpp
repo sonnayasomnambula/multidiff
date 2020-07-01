@@ -48,7 +48,7 @@ FileList::FileList(QWidget* parent) :
         Q_ASSERT(mClicked.size() == 3);
 
         if (column >= 0 && mClicked[0] == mClicked[1] && mClicked[1] == mClicked[2])
-            QTimer::singleShot(1, [this]{ sortByColumn(-1); });
+            QTimer::singleShot(1, [this]{ sortByColumn(-1, Qt::AscendingOrder); });
     });
 }
 
@@ -99,20 +99,23 @@ void FileList::add(const QList<QUrl>& urls)
         QMessageBox::warning(this, "", collector.warnings().join("\n"));
 }
 
-void FileList::removeSelected()
+void FileList::remove(QModelIndexList what)
 {
     AppCursorLocker acl;
     WidgetLocker wl(this);
 
-    const auto selection = selectionModel()->selectedRows();
-
     // extract rows, map proxy to data, sort, remove duplicates if any
     std::set<int, std::greater<int>> rows;
-    std::transform(selection.cbegin(), selection.cend(), std::inserter(rows, rows.begin()), [this](const QModelIndex& index) {
+    std::transform(what.cbegin(), what.cend(), std::inserter(rows, rows.begin()), [this](const QModelIndex& index) {
         return mProxy->mapToSource(index).row();
     });
 
     mModel->remove(rows);
+}
+
+void FileList::removeSelected()
+{
+    remove(selectionModel()->selectedRows());
 }
 
 void FileList::selectNextDuplicates()

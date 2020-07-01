@@ -57,7 +57,7 @@ public:
 
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
-    FileItem item(unsigned row) const; // TODO: incapsulate
+    FileItem item(int row) const; // TODO: incapsulate
 
 private:
     QVariant displayData(const QModelIndex &index) const;
