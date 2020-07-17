@@ -22,12 +22,16 @@ private slots:
     void on_actionDiff_triggered();
     void on_actionEdit_triggered();
     void on_actionShow_duplicates_triggered();
+    void on_actionAbout_Qt_triggered();
 
 private:
     void closeEvent(QCloseEvent* e) override;
 
     void loadSettings();
     void storeSettings();
+
+    void setupActions();
+    void setActionsEnabled(bool enabled);
 
     Ui::MainWindow *ui;
 };

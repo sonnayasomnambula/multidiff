@@ -39,8 +39,31 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->fileList, &FileList::doubleClicked, this, &MainWindow::on_actionEdit_triggered);
 
     loadSettings();
+    setupActions();
+
     StatusMessage::setStatusBar(ui->statusBar);
     StatusMessage::show(tr("Drag'n'drop files here"), StatusMessage::mcInfinite);
+}
+
+void MainWindow::setupActions()
+{
+    ui->fileList->setContextMenuPolicy(Qt::ActionsContextMenu);
+    ui->fileList->addAction(ui->actionEdit);
+    ui->fileList->addAction(ui->actionRemove);
+    ui->fileList->addAction(ui->actionDiff);
+
+    connect(ui->fileList->selectionModel(), &QItemSelectionModel::selectionChanged, [this]{
+        setActionsEnabled(!ui->fileList->selectionModel()->selectedRows().isEmpty());
+    });
+    setActionsEnabled(false);
+}
+
+void MainWindow::setActionsEnabled(bool enabled)
+{
+    ui->actionDelete_file->setEnabled(enabled);
+    ui->actionDiff->setEnabled(enabled);
+    ui->actionEdit->setEnabled(enabled);
+    ui->actionRemove->setEnabled(enabled);
 }
 
 MainWindow::~MainWindow()
@@ -72,7 +95,6 @@ void MainWindow::storeSettings()
     settings.setValue(tags.main.geometry, saveGeometry());
     settings.setValue(tags.main.state, saveState());
     settings.setValue(tags.main.header, ui->fileList->header()->saveState());
-
 }
 
 bool MainWindow::on_actionSettings_triggered()
@@ -170,4 +192,9 @@ void MainWindow::on_actionEdit_triggered()
 void MainWindow::on_actionShow_duplicates_triggered()
 {
     ui->fileList->selectNextDuplicates();
+}
+
+void MainWindow::on_actionAbout_Qt_triggered()
+{
+    QApplication::aboutQt();
 }

@@ -167,7 +167,7 @@ void FileList::selectNextDuplicates()
 
 QFileInfo FileList::fileInfo(const QModelIndex& index) const
 {
-    if (index.row() >= mModel->rowCount())
+    if (!index.isValid() || index.row() >= mModel->rowCount())
         return {};
 
     return mModel->item(mProxy->mapToSource(index).row()).fileInfo;
