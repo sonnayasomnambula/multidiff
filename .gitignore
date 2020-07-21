@@ -1,1 +1,8 @@
 *.pro.user*
+*.o
+ui_*.h
+moc_*.h
+moc_*.cpp
+Makefile
+.qmake.stash
+multidiff
