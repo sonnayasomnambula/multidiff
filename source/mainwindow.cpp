@@ -8,28 +8,27 @@
 #include <QHeaderView>
 #include <QMessageBox>
 #include <QProcess>
-#include <QSettings>
 
+#include "abstractsettings.h"
 #include "fileinfomodel.h"
 #include "settingsdialog.h"
 #include "statusmessage.h"
 #include "widgetlocker.h"
 
-/// tags for QSettings class
-struct Tags
+struct Settings : AbstractSettings
 {
-    struct Main {
-        const QString geometry = QStringLiteral("main/geometry");
-        const QString state = QStringLiteral("main/state");
-        const QString header = QStringLiteral("main/header");
-    } const main;
+    struct
+    {
+        Tag state = "window/state";
+        Tag geometry = "window/geometry";
+        Tag headerState = "window/headerState";
+    } window;
 
-    struct Diff {
-        const QString command = QStringLiteral("diff/command");
-    } const diff;
-
-    const QString version = QStringLiteral("version");
-} static const tags;
+    struct
+    {
+        Tag command = "diff/command";
+    } diff;
+};
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -79,35 +78,34 @@ void MainWindow::closeEvent(QCloseEvent* e)
 
 void MainWindow::loadSettings()
 {
-    QSettings settings;
-    if (settings.value(tags.version).toString() != qApp->applicationVersion())
-        return;
+    Settings settings;
 
-    restoreGeometry(settings.value(tags.main.geometry).toByteArray());
-    restoreState(settings.value(tags.main.state).toByteArray());
-    ui->fileList->header()->restoreState(settings.value(tags.main.header).toByteArray());
+    restoreGeometry(settings.window.geometry(saveGeometry()));
+    restoreState(settings.window.state(saveState()));
+    auto header = ui->fileList->header();
+    header->restoreState(settings.window.headerState(header->saveState()));
 }
 
 void MainWindow::storeSettings()
 {
-    QSettings settings;
-    settings.setValue(tags.version, qApp->applicationVersion());
-    settings.setValue(tags.main.geometry, saveGeometry());
-    settings.setValue(tags.main.state, saveState());
-    settings.setValue(tags.main.header, ui->fileList->header()->saveState());
+    Settings settings;
+
+    settings.window.geometry.save(saveGeometry());
+    settings.window.state.save(saveState());
+    settings.window.headerState.save(ui->fileList->header()->saveState());
 }
 
 bool MainWindow::on_actionSettings_triggered()
 {
-    QSettings settings;
+    Settings settings;
     SettingsDialog dialog;
 
-    dialog.setDiffCommand(settings.value(tags.diff.command).toString());
+    dialog.setDiffCommand(settings.diff.command.value().toString());
 
     if (dialog.exec() != QDialog::Accepted)
         return false;
 
-    settings.setValue(tags.diff.command, dialog.diffCommand());
+    settings.diff.command.save(dialog.diffCommand());
     return true;
 }
 
@@ -154,8 +152,7 @@ void MainWindow::on_actionDiff_triggered()
         return;
     }
 
-    QSettings settings;
-    QString command = settings.value(tags.diff.command).toString();
+    QString command = Settings().diff.command.value().toString();
     if (command.isEmpty())
     {
         StatusMessage::show(tr("Please set side-by-side diff command"), 15000);

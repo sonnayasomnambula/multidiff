@@ -28,6 +28,7 @@ INCLUDEPATH += \
     source \
 
 SOURCES += \
+    source/abstractsettings.cpp \
     source/fileinfomodel.cpp \
     source/filelist.cpp \
     source/main.cpp \
@@ -36,6 +37,7 @@ SOURCES += \
     source/statusmessage.cpp
 
 HEADERS += \
+    source/abstractsettings.h \
     source/fileinfomodel.h \
     source/filelist.h \
     source/mainwindow.h \
