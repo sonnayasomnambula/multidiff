@@ -41,7 +41,7 @@ MainWindow::MainWindow(QWidget *parent) :
     setupActions();
 
     StatusMessage::setStatusBar(ui->statusBar);
-    StatusMessage::show(tr("Drag'n'drop files here"), StatusMessage::mcInfinite);
+    StatusMessage::show(tr("Drag'n'drop files or directories here"), StatusMessage::mcInfinite);
 }
 
 void MainWindow::setupActions()
@@ -163,14 +163,30 @@ void MainWindow::on_actionDiff_triggered()
     const auto f1(ui->fileList->fileInfo(selection[0]));
     const auto f2(ui->fileList->fileInfo(selection[1]));
     constexpr qint64 halfMB= 512 * 1024;
-    if (f1.size() > halfMB || f2.size() > halfMB)
+    if (f1.size() + f2.size() > halfMB)
     {
-        const auto response = QMessageBox::question(this, "", tr("Files are too big! Show anyway?"));
+        const auto response = QMessageBox::warning(this, "",
+            tr("Files are too big (%1)! Show anyway?").arg(humanReadableSize(f1.size() + f2.size())),
+            QMessageBox::Yes | QMessageBox::No);
         if (response != QMessageBox::Yes)
             return;
     }
 
     QProcess::execute(command.arg(f1.absoluteFilePath(), f2.absoluteFilePath()), {});
+}
+
+QString MainWindow::humanReadableSize(quint64 bytes)
+{
+    const QList<QString> suffixes = { tr("B"), tr("KB"), tr("MB"), tr("GB"), tr("TB") };
+    double size = bytes;
+    for (int i = 0; i < suffixes.size(); ++i)
+    {
+        if (size < 1024 || i == suffixes.size() - 1)
+            return QString("%1 %2").arg(size, 0, 'f', 1).arg(suffixes[i]);
+        size /= 1024.;
+    }
+
+    return "";
 }
 
 void MainWindow::on_actionEdit_triggered()
@@ -194,4 +210,9 @@ void MainWindow::on_actionShow_duplicates_triggered()
 void MainWindow::on_actionAbout_Qt_triggered()
 {
     QApplication::aboutQt();
+}
+
+void MainWindow::on_actionAbout_triggered()
+{
+    QMessageBox::about(this, "", tr("Diff over multiple files. Drag'n'drop files or directories here."));
 }

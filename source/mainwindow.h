@@ -23,6 +23,7 @@ private slots:
     void on_actionEdit_triggered();
     void on_actionShow_duplicates_triggered();
     void on_actionAbout_Qt_triggered();
+    void on_actionAbout_triggered();
 
 private:
     void closeEvent(QCloseEvent* e) override;
@@ -32,6 +33,8 @@ private:
 
     void setupActions();
     void setActionsEnabled(bool enabled);
+
+    static QString humanReadableSize(quint64 bytes);
 
     Ui::MainWindow *ui;
 };
