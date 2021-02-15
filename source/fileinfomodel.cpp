@@ -152,12 +152,10 @@ void FileInfoModel::Collector::collect(const QList<QUrl>& urls)
         const auto path = url.toLocalFile();
         QFileInfo entry(path);
 
-        if (entry.isFile())
-            appendFile(path);
-        else if (entry.isDir())
+        if (entry.isDir())
             appendDir(path);
         else
-            mWarnings.append(QObject::tr("Cannot add '%1'").arg(path));
+            appendFile(path);
 
         if (mLastClickedButton == QMessageBox::Cancel)
             break;
