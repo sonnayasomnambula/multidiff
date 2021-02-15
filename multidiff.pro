@@ -28,7 +28,6 @@ INCLUDEPATH += \
     source \
 
 SOURCES += \
-    source/abstractsettings.cpp \
     source/fileinfomodel.cpp \
     source/filelist.cpp \
     source/main.cpp \
