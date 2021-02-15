@@ -39,6 +39,9 @@ private:
     class Storage
     {
         QSharedPointer<QSettings> mLocalPointer;
+        // unlike java we cannot access AbstractSettings::this from a nested class
+        // (and i don't want to pass it through Tag ctor),
+        // so we'll create a static variable in ctor and destroy it in dtor
         static QWeakPointer<QSettings> mCommonRef;
         static QMutex mCommonMutex;
     public:

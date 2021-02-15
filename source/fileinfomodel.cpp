@@ -149,6 +149,8 @@ void FileInfoModel::Collector::collect(const QList<QUrl>& urls)
 {
     for (const auto& url: urls)
     {
+        if (url.isEmpty()) continue;
+
         const auto path = url.toLocalFile();
         QFileInfo entry(path);
 

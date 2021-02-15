@@ -4,6 +4,7 @@
 #include <QDesktopServices>
 #include <QDragEnterEvent>
 #include <QDebug>
+#include <QFileDialog>
 #include <QFileInfo>
 #include <QHeaderView>
 #include <QMessageBox>
@@ -93,6 +94,16 @@ void MainWindow::storeSettings()
     settings.window.geometry.save(saveGeometry());
     settings.window.state.save(saveState());
     settings.window.headerState.save(ui->fileList->header()->saveState());
+}
+
+void MainWindow::on_actionAdd_files_triggered()
+{
+    ui->fileList->add(QFileDialog::getOpenFileUrls(this));
+}
+
+void MainWindow::on_actionAdd_directory_triggered()
+{
+    ui->fileList->add({QFileDialog::getExistingDirectoryUrl(this)});
 }
 
 bool MainWindow::on_actionSettings_triggered()

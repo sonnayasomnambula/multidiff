@@ -22,7 +22,7 @@ QSharedPointer<QSettings> AbstractSettings::Storage::instance()
 
     if (!mCommonRef)
     {
-        Q_ASSERT_X(false, Q_FUNC_INFO, "You must create a Settings object first");
+        Q_ASSERT_X(false, Q_FUNC_INFO, "You must create an AbstractSettings object first");
         return QSharedPointer<QSettings>::create();
     }
 

@@ -16,6 +16,8 @@ public:
     ~MainWindow();
 
 private slots:
+    void on_actionAdd_files_triggered();
+    void on_actionAdd_directory_triggered();
     bool on_actionSettings_triggered();
     void on_actionRemove_triggered();
     void on_actionDelete_file_triggered();

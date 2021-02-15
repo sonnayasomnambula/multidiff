@@ -85,6 +85,8 @@ void FileList::dropEvent(QDropEvent* e)
 
 void FileList::add(const QList<QUrl>& urls)
 {
+    if (urls.isEmpty()) return;
+
     FileInfoModel::Collector collector(this);
 
     {
