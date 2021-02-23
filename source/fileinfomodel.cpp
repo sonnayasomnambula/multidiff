@@ -114,7 +114,7 @@ void FileInfoModel::updatePixmaps()
         }
 
     private:
-        int mColor = Qt::white;
+        int mColor = Qt::lightGray; // darkGray, gray and lightGray looks like the same color in the list, so we start from lightGray
         QRandomGenerator mRand;
     };
 
