@@ -19,12 +19,23 @@
 #include "statusmessage.h"
 #include "widgetlocker.h"
 
+class NumberDelegate : public QStyledItemDelegate
+{
+    QLocale mLocale;
+
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+
+    QString displayText(const QVariant& value, const QLocale&) const override
+    {
+        return mLocale.toString(value.toInt()); // add spaces between groups
+    }
+};
+
 class Base64Delegate : public QStyledItemDelegate
 {
 public:
-    explicit Base64Delegate(QObject *parent = nullptr) :
-        QStyledItemDelegate(parent)
-    {}
+    using QStyledItemDelegate::QStyledItemDelegate;
 
     QString displayText(const QVariant& value, const QLocale&) const override
     {
@@ -39,6 +50,7 @@ FileList::FileList(QWidget* parent) :
 {
     mProxy->setSourceModel(mModel);
     setModel(mProxy);
+    setItemDelegateForColumn(FileInfoModel::eSize, new NumberDelegate(this));
     setItemDelegateForColumn(FileInfoModel::eHash, new Base64Delegate(this));
 
     // Disable the sort after 3rd click on the same column header

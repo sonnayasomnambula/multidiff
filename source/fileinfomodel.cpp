@@ -15,10 +15,16 @@
 
 #include "statusmessage.h"
 
+bool operator ==(const FileItem& lhs, const FileItem& rhs) {
+    return lhs.fileInfo == rhs.fileInfo;
+}
+
 void FileInfoModel::add(const QList<FileItem>& items)
 {
-    beginResetModel(); // TODO: beginInsertRows();
-    mData.append(items);
+    beginResetModel();
+    for (const auto& i : items)
+        if (!mData.contains(i))
+            mData.append(i);
     updatePixmaps();
     endResetModel();
 }
@@ -114,7 +120,7 @@ void FileInfoModel::updatePixmaps()
         }
 
     private:
-        int mColor = Qt::white;
+        int mColor = Qt::lightGray; // darkGray, gray and lightGray looks like the same color in the list, so we start from lightGray
         QRandomGenerator mRand;
     };
 
