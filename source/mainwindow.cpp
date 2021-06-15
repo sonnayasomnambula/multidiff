@@ -183,7 +183,20 @@ void MainWindow::on_actionDiff_triggered()
             return;
     }
 
-    QProcess::execute(command.arg(f1.absoluteFilePath(), f2.absoluteFilePath()), {});
+    QStringList args = { f1.absoluteFilePath(), f2.absoluteFilePath() };
+    QString errorString;
+    int status = QProcess::execute(command, args);
+    if (status == -2)
+    {
+        errorString = tr("Unable to execute '%1': the process cannot be started").arg(command);
+    }
+    else if (status != 0)
+    {
+        errorString = tr("Command '%1' finished with status %2").arg(command).arg(status);
+    }
+
+    if (!errorString.isEmpty())
+        QMessageBox::warning(this, "", errorString);
 }
 
 QString MainWindow::humanReadableSize(quint64 bytes)
