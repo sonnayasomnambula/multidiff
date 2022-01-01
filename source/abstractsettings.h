@@ -7,17 +7,15 @@
 class AbstractSettings
 {
 public:
+    template <typename T>
     class Tag
     {
+        const QString mKey;
+
     public:
         Tag(const char* key) : mKey(key) {}
 
-        QVariant value() const {
-            return QSettings().value(mKey);
-        }
-
-        template<typename T>
-        T operator ()(const T& defaultValue) const {
+        T operator ()(const T& defaultValue = T()) const {
             return QSettings().value(mKey, defaultValue).template value<T>();
         }
 
@@ -28,9 +26,26 @@ public:
         bool exists() const {
             return QSettings().contains(mKey);
         }
+    };
 
-    private:
-        const QString mKey;
+    class State
+    {
+        Tag<QByteArray> mState;
+
+    public:
+        State(const char* key) : mState(key) {}
+        template <class Widget> void save(Widget* w) { mState.save(w->saveState()); }
+        template <class Widget> void restore(Widget* w) { w->restoreState(mState(w->saveState())); }
+    };
+
+    class Geometry
+    {
+        Tag<QByteArray> mGeo;
+
+    public:
+        Geometry(const char* key) : mGeo(key) {}
+        template <class Widget> void save(Widget* w) { mGeo.save(w->saveGeometry()); }
+        template <class Widget> void restore(Widget* w) { w->restoreGeometry(mGeo(w->saveGeometry())); }
     };
 };
 

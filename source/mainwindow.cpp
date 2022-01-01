@@ -20,14 +20,16 @@ struct Settings : AbstractSettings
 {
     struct
     {
-        Tag state = "window/state";
-        Tag geometry = "window/geometry";
-        Tag headerState = "window/headerState";
+        State state = "window/state";
+        Geometry geometry = "window/geometry";
+        struct {
+            State state = "window/headerState";
+        } header;
     } window;
 
     struct
     {
-        Tag command = "diff/command";
+        Tag<QString> command = "diff/command";
     } diff;
 };
 
@@ -81,19 +83,18 @@ void MainWindow::loadSettings()
 {
     Settings settings;
 
-    restoreGeometry(settings.window.geometry(saveGeometry()));
-    restoreState(settings.window.state(saveState()));
-    auto header = ui->fileList->header();
-    header->restoreState(settings.window.headerState(header->saveState()));
+    settings.window.geometry.restore(this);
+    settings.window.state.restore(this);
+    settings.window.header.state.restore(ui->fileList->header());
 }
 
 void MainWindow::storeSettings()
 {
     Settings settings;
 
-    settings.window.geometry.save(saveGeometry());
-    settings.window.state.save(saveState());
-    settings.window.headerState.save(ui->fileList->header()->saveState());
+    settings.window.geometry.save(this);
+    settings.window.state.save(this);
+    settings.window.header.state.save(ui->fileList->header());
 }
 
 void MainWindow::on_actionAdd_files_triggered()
@@ -111,7 +112,7 @@ bool MainWindow::on_actionSettings_triggered()
     Settings settings;
     SettingsDialog dialog;
 
-    dialog.setDiffCommand(settings.diff.command.value().toString());
+    dialog.setDiffCommand(settings.diff.command());
 
     if (dialog.exec() != QDialog::Accepted)
         return false;
@@ -163,7 +164,7 @@ void MainWindow::on_actionDiff_triggered()
         return;
     }
 
-    QString command = Settings().diff.command.value().toString();
+    QString command = Settings().diff.command();
     if (command.isEmpty())
     {
         StatusMessage::show(tr("Please set side-by-side diff command"), 15000);
